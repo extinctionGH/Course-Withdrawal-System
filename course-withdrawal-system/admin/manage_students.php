@@ -3,7 +3,7 @@ require '../includes/auth.php';
 require '../config/db_connect.php';
 require '../includes/header.php';
 
-// Only admin can access
+// Only teachers can access
 if (strtolower($_SESSION['role']) !== 'admin') {
     header("Location: ../auth/login.php");
     exit();
@@ -14,24 +14,25 @@ $conn = $db->connect();
 
 $message = "";
 
-// Handle add student
+// Handle add student - automatically assign to this teacher
 if (isset($_POST['add_student'])) {
     $fullName = trim($_POST['full_name']);
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
 
     if (!empty($fullName) && !empty($email) && !empty($password)) {
-        // Check if email already exists
         $check = $conn->prepare("SELECT * FROM user WHERE Email = :email");
         $check->execute([':email' => $email]);
         if ($check->rowCount() > 0) {
             $message = "Email already exists!";
         } else {
-            $stmt = $conn->prepare("INSERT INTO user (FullName, Email, Password, Role) VALUES (:fullName, :email, :password, 'Student')");
+            // Add TeacherID when creating student
+            $stmt = $conn->prepare("INSERT INTO user (FullName, Email, Password, Role, TeacherID) VALUES (:fullName, :email, :password, 'Student', :teacherID)");
             $stmt->execute([
                 ':fullName' => $fullName,
                 ':email' => $email,
-                ':password' => $password
+                ':password' => $password,
+                ':teacherID' => $_SESSION['userID']
             ]);
             $message = "Student added successfully!";
         }
@@ -49,19 +50,21 @@ if (isset($_POST['edit_student'])) {
 
     if (!empty($fullName) && !empty($email)) {
         if (!empty($password)) {
-            $stmt = $conn->prepare("UPDATE user SET FullName = :fullName, Email = :email, Password = :password WHERE UserID = :id AND Role = 'Student'");
+            $stmt = $conn->prepare("UPDATE user SET FullName = :fullName, Email = :email, Password = :password WHERE UserID = :id AND Role = 'Student' AND TeacherID = :teacherID");
             $stmt->execute([
                 ':fullName' => $fullName,
                 ':email' => $email,
                 ':password' => $password,
-                ':id' => $id
+                ':id' => $id,
+                ':teacherID' => $_SESSION['userID']
             ]);
         } else {
-            $stmt = $conn->prepare("UPDATE user SET FullName = :fullName, Email = :email WHERE UserID = :id AND Role = 'Student'");
+            $stmt = $conn->prepare("UPDATE user SET FullName = :fullName, Email = :email WHERE UserID = :id AND Role = 'Student' AND TeacherID = :teacherID");
             $stmt->execute([
                 ':fullName' => $fullName,
                 ':email' => $email,
-                ':id' => $id
+                ':id' => $id,
+                ':teacherID' => $_SESSION['userID']
             ]);
         }
         $message = "Student updated successfully!";
@@ -73,19 +76,24 @@ if (isset($_POST['edit_student'])) {
 // Handle delete student
 if (isset($_POST['delete_student'])) {
     $id = intval($_POST['user_id']);
-    $stmt = $conn->prepare("DELETE FROM user WHERE UserID = :id AND Role = 'Student'");
-    $stmt->execute([':id' => $id]);
+    $stmt = $conn->prepare("DELETE FROM user WHERE UserID = :id AND Role = 'Student' AND TeacherID = :teacherID");
+    $stmt->execute([
+        ':id' => $id,
+        ':teacherID' => $_SESSION['userID']
+    ]);
     $message = "Student deleted successfully!";
 }
 
-// Fetch all students
-$students = $conn->query("SELECT * FROM user WHERE Role = 'Student' ORDER BY FullName ASC")->fetchAll(PDO::FETCH_ASSOC);
+// Fetch only this teacher's students
+$stmt = $conn->prepare("SELECT * FROM user WHERE Role = 'Student' AND TeacherID = :teacherID ORDER BY FullName ASC");
+$stmt->execute([':teacherID' => $_SESSION['userID']]);
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<h2>Manage Students</h2>
+<h2>Manage My Students</h2>
 
 <?php if($message): ?>
-    <p class="text-error"><?= htmlspecialchars($message) ?></p>
+    <p class="text-success"><?= htmlspecialchars($message) ?></p>
 <?php endif; ?>
 
 <!-- Add Student Form -->

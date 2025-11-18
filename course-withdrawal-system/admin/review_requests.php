@@ -11,20 +11,22 @@ if (strtolower($_SESSION['role']) !== 'admin') {
 $db = new Database();
 $conn = $db->connect();
 
-$stmt = $conn->query("
+// Only show requests directed to THIS teacher
+$stmt = $conn->prepare("
     SELECT wr.RequestID, u.FullName, c.CourseName, wr.RequestDate, wr.Reason, wr.Status
     FROM withdrawal_request wr
     JOIN user u ON wr.UserID = u.UserID
     JOIN course c ON wr.CourseID = c.CourseID
+    WHERE wr.TeacherID = :teacherID
     ORDER BY wr.RequestDate DESC
 ");
+$stmt->execute([':teacherID' => $_SESSION['userID']]);
 $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <h2>Review Withdrawal Requests</h2>
 <?php if ($requests): ?>
 <table class="styled-table">
-    
     <tr>
         <th>Student</th>
         <th>Course</th>
@@ -55,7 +57,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endforeach; ?>
 </table>
 <?php else: ?>
-    <p>No requests available.</p>
+    <p>No requests sent to you.</p>
 <?php endif; ?>
 
 <?php require '../includes/footer.php'; ?>

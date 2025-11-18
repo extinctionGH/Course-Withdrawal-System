@@ -58,7 +58,7 @@ $courses = $conn->query("SELECT * FROM course ORDER BY CourseName ASC")->fetchAl
 <h2>Manage Courses</h2>
 
 <?php if($message): ?>
-    <p class="text-error"><?= htmlspecialchars($message) ?></p>
+    <p class="text-success"><?= htmlspecialchars($message) ?></p>
 <?php endif; ?>
 
 <!-- Add Course Form -->
